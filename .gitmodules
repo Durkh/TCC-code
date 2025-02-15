@@ -1,3 +1,15 @@
 [submodule "DCP"]
 	path = DCP
 	url = https://github.com/Durkh/DCP
+[submodule "components/AHT"]
+	path = components/AHT
+	url = https://github.com/adafruit/Adafruit_AHTX0.git
+[submodule "components/busyIO"]
+	path = components/busyIO
+	url = https://github.com/adafruit/Adafruit_BusIO.git
+[submodule "components/adafruit_sensor"]
+	path = components/adafruit_sensor
+	url = https://github.com/adafruit/Adafruit_Sensor.git
+[submodule "components/ENS"]
+	path = components/ENS
+	url = https://github.com/sciosense/ENS160_driver.git
