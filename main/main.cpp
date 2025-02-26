@@ -1,7 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "DCP.h"
-#include "freertos/projdefs.h"
 
 #if defined(__ESP32__)
 
@@ -13,6 +12,8 @@
 #include "Arduino.h"
 #include "Adafruit_AHTX0.h"
 #include "ScioSense_ENS160.h"
+
+#include "Wire.h"
 
 //#define READ 1
 
@@ -29,44 +30,8 @@ void SanityCheck(unsigned const int size, uint8_t const msg[]){
 
 extern "C" void app_main(void){
 
-   initArduino();
-
+    initArduino();
     Serial.begin(115200);
-
-    ens160.begin();
-    if (ens160.available()) {
-        ens160.setMode(ENS160_OPMODE_STD);
-        ESP_LOGI("ENS", "successfully initialized");
-    }else {
-        ESP_LOGE("ENS", "error initializing");
-    }
-
-    if (!aht.begin()) {
-        ESP_LOGE("AHT", "error initializing");
-
-        for (int i = 0; i < 10; ++i){
-                vTaskDelay(pdMS_TO_TICKS(10));
-        }
-    } else {
-        ESP_LOGI("AHT", "successfully initialized");
-
-        sensors_event_t humidity1, temp; //Tim had to change to  humidity1
-        aht.getEvent(&humidity1, &temp);// populate temp and humidity objects with fresh data
-
-        ESP_LOGI("AHT", "temp: %f\thumidity: %f", temp.temperature, humidity1.relative_humidity);
-
-        if (ens160.available()) {
-
-            // Give values to Air Quality Sensor.
-            ens160.set_envdata(temp.temperature, humidity1.relative_humidity);
-
-            ens160.measure(true);
-            ens160.measureRaw(true);
-
-            ESP_LOGI("ENS", "AQI: %i\tTVOC: %ippb\teCO2: %ippm\t", ens160.getAQI(), ens160.getTVOC(), ens160.geteCO2());
-
-        }
-    }
 
     //unsigned char msg[] = "egidio neto da computacao";
 
@@ -102,9 +67,50 @@ extern "C" void app_main(void){
     }
 #else 
 
+    ens160.setI2C(4, 3);
+    Wire.setPins(4, 3);
+
+    ens160.begin();
+    if (ens160.available()) {
+        ens160.setMode(ENS160_OPMODE_STD);
+        ESP_LOGI("ENS", "successfully initialized");
+    }else {
+        ESP_LOGE("ENS", "error initializing");
+    }
+
+    if (!aht.begin()) {
+        ESP_LOGE("AHT", "error initializing");
+
+        for (int i = 0; i < 10; ++i){
+                vTaskDelay(pdMS_TO_TICKS(10));
+        }
+    } else {
+        ESP_LOGI("AHT", "successfully initialized");
+    }
+
+    sensors_event_t humidity1, temp;
+
+
     unsigned char msg[] = "egidio";
 
     while(1){
+
+        if (aht.getStatus() != 0xFF) {
+            aht.getEvent(&humidity1, &temp);// populate temp and humidity objects with fresh data
+
+            ESP_LOGI("AHT", "temp: %.2f\thumidity: %.2f", temp.temperature, humidity1.relative_humidity);
+
+            if (ens160.available()) {
+                ens160.set_envdata(temp.temperature, humidity1.relative_humidity);
+
+                ens160.measure(true);
+                ens160.measureRaw(true);
+
+                ESP_LOGI("ENS", "AQI: %i\tTVOC: %ippb\teCO2: %ippm\t", ens160.getAQI(), ens160.getTVOC(), ens160.geteCO2());
+            }
+        }
+
+
         DCP_Data_t message = {.data = (uint8_t*)malloc(sizeof(struct DCP_Message_Generic_t) + strlen((char*)msg)+1 + sizeof(uint8_t))};
 
         message.message->type = strlen((char*)msg)+3;

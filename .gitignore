@@ -6,3 +6,4 @@ sdkconfig*
 *.cmake
 
 managed_components/
+*.lock
