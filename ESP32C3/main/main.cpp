@@ -2,8 +2,6 @@
 #include <stdio.h>
 #include "DCP.h"
 
-#if defined(__ESP32__)
-
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_log.h>
@@ -15,7 +13,7 @@
 
 #include "Wire.h"
 
-//#define READ 1
+#define READ 1
 
 Adafruit_AHTX0 aht;
 ScioSense_ENS160 ens160(ENS160_I2CADDR_1);
@@ -43,6 +41,7 @@ extern "C" void app_main(void){
 #endif
     mode.flags.flags = FLAG_Instant;
     mode.isController = true;
+    //mode.speed = DCP_MODE::FAST2;
     mode.speed = DCP_MODE::SLOW;
 
     if (!DCPInit(1, mode)){
@@ -127,6 +126,3 @@ extern "C" void app_main(void){
     while(true);
 
 }
-#elif defined(__RPICO__)
-
-#endif
