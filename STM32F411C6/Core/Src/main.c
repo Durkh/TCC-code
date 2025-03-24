@@ -26,6 +26,11 @@
 
 extern uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len);
 
+#include "ssd1306.h"
+#include "ssd1306_fonts.h"
+
+#include "DCP.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,9 +46,13 @@ extern uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len);
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
+#define PRINT(str) CDC_Transmit_FS((uint8_t*)str, sizeof(str))
+
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
 TIM_HandleTypeDef htim2;
 
 osThreadId defaultTaskHandle;
@@ -55,6 +64,7 @@ osThreadId defaultTaskHandle;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_I2C1_Init(void);
 void StartDefaultTask(void const * argument);
 
 /* USER CODE BEGIN PFP */
@@ -63,20 +73,6 @@ void StartDefaultTask(void const * argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-void TestTask(void* arg){
-    (void)arg;
-    
-    uint8_t buf[] = "eletronica egidio\r\n";
-
-    while(1){
-        CDC_Transmit_FS(buf, sizeof(buf));
-        HAL_Delay(1000); 
-        HAL_GPIO_TogglePin(GPIOC, 13);
-    }
-
-}
-
 /* USER CODE END 0 */
 
 /**
@@ -109,7 +105,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM2_Init();
-  MX_USB_DEVICE_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -137,7 +133,6 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
-  xTaskCreate(TestTask, "test", 1024, NULL, 5, NULL);
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */
@@ -202,6 +197,40 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
   * @brief TIM2 Initialization Function
   * @param None
   * @retval None
@@ -261,11 +290,14 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(DCP_debug_GPIO_Port, DCP_debug_Pin, GPIO_PIN_RESET);
@@ -276,6 +308,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PA0 PA1 PA2 PA3 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : DCP_bus_Pin */
   GPIO_InitStruct.Pin = DCP_bus_Pin;
@@ -313,12 +352,43 @@ static void MX_GPIO_Init(void)
 void StartDefaultTask(void const * argument)
 {
   /* init code for USB_DEVICE */
+  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 5 */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1000);
-  }
+    (void) argument;
+
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
+
+    PRINT("STARTING\r\n");
+
+    uint8_t buf[] = "eletronica egidio";
+
+    ssd1306_Init();
+    ssd1306_WriteString((char*)buf, Font_6x8, White);
+    ssd1306_UpdateScreen();
+
+    DCP_MODE mode = {.addr = 0x10, .flags.flags = FLAG_Instant, .isController = 0, .speed = SLOW};
+
+    if (!DCPInit(0, mode)){
+       PRINT("não foi possivel iniciar o barramento\r\n"); 
+    }
+
+    struct DCP_Message_t* message = NULL;
+    while(1){
+
+        message = ReadMessage();
+
+        if (message) {
+            DCP_Data_t debug = {.message = message};
+            PRINT("read\r\n");
+            HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+            free(message);
+            message = NULL;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(500));
+        PRINT("reading\r\n");
+
+    }
   /* USER CODE END 5 */
 }
 

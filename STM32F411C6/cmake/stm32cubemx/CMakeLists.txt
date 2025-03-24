@@ -24,6 +24,7 @@ set(MX_Include_Dirs
     ${CMAKE_SOURCE_DIR}/Drivers/CMSIS/Device/ST/STM32F4xx/Include
     ${CMAKE_SOURCE_DIR}/Drivers/CMSIS/Include
     ${CMAKE_SOURCE_DIR}/Core/DCP/include
+    ${CMAKE_SOURCE_DIR}/Drivers/OLED
 )
 
 # STM32CubeMX generated application sources
@@ -63,6 +64,10 @@ set(STM32_Drivers_Src
     ${CMAKE_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.c
     ${CMAKE_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c
     ${CMAKE_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_exti.c
+    ${CMAKE_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2c.c
+    ${CMAKE_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2c_ex.c
+    ${CMAKE_SOURCE_DIR}/Drivers/OLED/ssd1306.c
+    ${CMAKE_SOURCE_DIR}/Drivers/OLED/ssd1306_fonts.c
 )
 
 # Drivers Midllewares
@@ -117,7 +122,6 @@ target_link_libraries(STM32_Drivers PUBLIC stm32cubemx)
 add_library(USB_Device_Library OBJECT)
 target_sources(USB_Device_Library PRIVATE ${USB_Device_Library_Src})
 target_link_libraries(USB_Device_Library PUBLIC stm32cubemx)
-
 
 add_library(DCP OBJECT)
 target_sources(DCP PRIVATE ${DCP_Src})

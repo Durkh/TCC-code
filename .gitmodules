@@ -10,3 +10,6 @@
 [submodule "ESP32C3/components/busyIO"]
 	path = ESP32C3/components/busyIO
 	url = https://github.com/adafruit/Adafruit_BusIO.git
+[submodule "esp32c3-epaper"]
+	path = esp32c3-epaper
+	url = https://github.com/Durkh/esp32c3-epaper.git
