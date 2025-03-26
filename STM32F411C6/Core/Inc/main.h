@@ -60,8 +60,8 @@ void Error_Handler(void);
 #define DCP_bus_Pin GPIO_PIN_0
 #define DCP_bus_GPIO_Port GPIOB
 #define DCP_bus_EXTI_IRQn EXTI0_IRQn
-#define DCP_debug_Pin GPIO_PIN_1
-#define DCP_debug_GPIO_Port GPIOB
+#define DCP_debug_Pin GPIO_PIN_13
+#define DCP_debug_GPIO_Port GPIOC
 
 /* USER CODE BEGIN Private defines */
 

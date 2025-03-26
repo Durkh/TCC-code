@@ -30,6 +30,7 @@ extern uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len);
 #include "ssd1306_fonts.h"
 
 #include "DCP.h"
+extern void BusISR(void* arg);
 
 /* USER CODE END Includes */
 
@@ -73,6 +74,51 @@ void StartDefaultTask(void const * argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+void Print7SD(unsigned int n){
+
+    const int n1 = n%10;
+    
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+
+    for (int i = 0; i < 4; ++i){
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0 << i, (n1>>i)&0x1);
+    }
+
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
+
+    if (n < 10) return;
+
+    const int n2 = (n/10)%10;
+
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+    for (int i = 0; i < 4; ++i){
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0 << i, (n2>>i)&0x1);
+    }
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+
+    if(GPIO_Pin == GPIO_PIN_0) {
+        BusISR((void*)GPIO_Pin);
+    } else {
+      __NOP();
+    }
+}
+
+void SanityCheck(unsigned const int size, uint8_t const msg[]){
+
+    uint8_t str[2] = {0};
+
+    for (unsigned i = 0; i < size; ++i)
+        for (int j = 7; j >= 0; --j){
+            str[0] = '0' + ((msg[i] >> j) & 0x1);
+            CDC_Transmit_FS(str, 1);
+        }
+    PRINT("\r\n");
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -107,6 +153,7 @@ int main(void)
   MX_TIM2_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
+    ssd1306_Init();
 
   /* USER CODE END 2 */
 
@@ -120,6 +167,7 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_TIMERS */
   /* start timers, add new ones, ... */
+    HAL_TIM_Base_Start(&htim2);
   /* USER CODE END RTOS_TIMERS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
@@ -128,7 +176,7 @@ int main(void)
 
   /* Create the thread(s) */
   /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
+  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 512);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
@@ -294,32 +342,25 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(DCP_debug_GPIO_Port, DCP_debug_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PC13 */
-  GPIO_InitStruct.Pin = GPIO_PIN_13;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
   /*Configure GPIO pins : PA0 PA1 PA2 PA3 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3;
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : DCP_bus_Pin */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4|GPIO_PIN_5, GPIO_PIN_SET);
+
+  /*Configure GPIO pin : DCP_bus_Pin
+ */
   GPIO_InitStruct.Pin = DCP_bus_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(DCP_bus_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : DCP_debug_Pin */
@@ -330,8 +371,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(DCP_debug_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+  //HAL_NVIC_SetPriority(EXTI0_IRQn, 2, 0);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -356,21 +396,29 @@ void StartDefaultTask(void const * argument)
   /* USER CODE BEGIN 5 */
     (void) argument;
 
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
-
-    PRINT("STARTING\r\n");
-
-    uint8_t buf[] = "eletronica egidio";
-
-    ssd1306_Init();
-    ssd1306_WriteString((char*)buf, Font_6x8, White);
+    ssd1306_WriteString("starting", Font_6x8, White);
     ssd1306_UpdateScreen();
+    ssd1306_SetCursor(0,0);
+
+    Print7SD(0x0);
 
     DCP_MODE mode = {.addr = 0x10, .flags.flags = FLAG_Instant, .isController = 0, .speed = SLOW};
 
     if (!DCPInit(0, mode)){
-       PRINT("não foi possivel iniciar o barramento\r\n"); 
+        PRINT("não foi possivel iniciar o barramento\r\n"); 
+        ssd1306_WriteString("não foi possivel iniciar o barramento", Font_6x8, White);
+        ssd1306_UpdateScreen();
+        while(1);
     }
+
+    HAL_NVIC_SetPriority(EXTI0_IRQn, 6, 0);
+    HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+    ssd1306_Fill(Black);
+    ssd1306_SetCursor(0, 0);
+    ssd1306_WriteString("reading", Font_6x8, White);
+    ssd1306_UpdateScreen();
+    ssd1306_SetCursor(0, 12);
 
     struct DCP_Message_t* message = NULL;
     while(1){
@@ -378,9 +426,15 @@ void StartDefaultTask(void const * argument)
         message = ReadMessage();
 
         if (message) {
-            DCP_Data_t debug = {.message = message};
+            Print7SD(message->type);
+
+            ssd1306_WriteString(message->generic.payload, Font_6x8, White);
+            ssd1306_UpdateScreen();
+            ssd1306_SetCursor(0, 12);
+
+            //SanityCheck(message->type, debug.data);
+
             PRINT("read\r\n");
-            HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
             free(message);
             message = NULL;
         }
@@ -423,6 +477,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
+    Print7SD(80);
   while (1)
   {
   }
@@ -430,6 +485,9 @@ void Error_Handler(void)
 }
 
 #ifdef  USE_FULL_ASSERT
+#include <stdlib.h>
+#include <string.h>
+
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -440,6 +498,23 @@ void Error_Handler(void)
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
+    char buffer[] = "assert failed";
+    char sline[32];
+  
+    ssd1306_Fill(Black);
+    ssd1306_SetCursor(0, 0);
+    ssd1306_WriteString(buffer, Font_6x8, White);
+
+    ssd1306_SetCursor(0, 9);
+    ssd1306_WriteString(strrchr((char*)file, '/'), Font_6x8, White);
+
+    ssd1306_SetCursor(0, 18);
+    itoa(line, sline, 10);
+    ssd1306_WriteString((char*)sline, Font_6x8, White);
+
+    ssd1306_UpdateScreen();
+
+    while(1);
   /* User can add his own implementation to report the file name and line number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */

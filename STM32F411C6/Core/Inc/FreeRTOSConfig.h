@@ -70,6 +70,8 @@
 #define configUSE_MUTEXES                        1
 #define configQUEUE_REGISTRY_SIZE                8
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION  1
+#define configUSE_TASK_NOTIFICATIONS             1 
+#define configTASK_NOTIFICATION_ARRAY_ENTRIES    1
 /* USER CODE BEGIN MESSAGE_BUFFER_LENGTH_TYPE */
 /* Defaults to size_t for backward compatibility, but can be changed
    if lengths will always be less than the number of bytes in a size_t. */
@@ -122,7 +124,8 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 /* Normal assert() semantics without relying on the provision of an assert.h
 header file. */
 /* USER CODE BEGIN 1 */
-#define configASSERT( x ) if ((x) == 0) {taskDISABLE_INTERRUPTS(); for( ;; );}
+extern void assert_failed(uint8_t *file, uint32_t line);
+#define configASSERT( x ) if ((x) == 0) {taskDISABLE_INTERRUPTS(); assert_failed((uint8_t *)__FILE__, __LINE__);}
 /* USER CODE END 1 */
 
 /* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
