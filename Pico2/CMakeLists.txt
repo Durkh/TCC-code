@@ -9,9 +9,8 @@ endif()
 
 include(pico_sdk_import.cmake)
 include(FreeRTOS_Kernel_import.cmake)
-#include(""${PICO_SDK_PATH}"/pico_sdk_version.cmake)
 
-project(teste)
+project(teste C CXX ASM)
 
 pico_sdk_init()
 
