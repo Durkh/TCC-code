@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include "pico/stdlib.h"
+#include "hardware/gpio.h"
 #include "pico/multicore.h"
 
 #include "FreeRTOS.h"
@@ -16,13 +17,15 @@ void main_task(void *params) {
         message = ReadMessage();
 
         if (message) {
-            printf("read: %s", message->generic.payload);
+            gpio_put(14, 1);
+            printf("read: %s\n", message->generic.payload);
 
             free(message);
             message = NULL;
         }
 
         vTaskDelay(pdMS_TO_TICKS(500));
+        gpio_xor_mask(1u << 15);
         printf("reading\n");
     }
 }
@@ -30,6 +33,9 @@ void main_task(void *params) {
 int main( void )
 {
     stdio_init_all();
+
+    gpio_init_mask(1U<<15 | 1U<<14 | 1U<<13 | 1U<<12 | 1U<<11);
+    gpio_set_dir_out_masked(1U<<15 | 1U<<14 | 1U<<13 | 1U<<12 | 1U<<11);
 
     DCP_MODE mode = {.addr = 0x10, .flags.flags = FLAG_Instant, .isController = 0, .speed = SLOW};
 
