@@ -1,9 +1,9 @@
 *.cache/
 */build/*
 
-*sdkconfig*
+*sdkconfig.old
 
-ESP32C3/managed_components/
+*managed_components/
 *.lock
 
 *.swp
