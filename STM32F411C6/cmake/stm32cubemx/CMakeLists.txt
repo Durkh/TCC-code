@@ -94,7 +94,7 @@ set(FreeRTOS_Src
 
 set(DCP_Src
     ${CMAKE_SOURCE_DIR}/Core/DCP/generic/DCP.c
-    ${CMAKE_SOURCE_DIR}/Core/DCP/STM32/STM32F411.c
+    ${CMAKE_SOURCE_DIR}/Core/DCP/STM32/port.c
 )
 
 # Link directories setup

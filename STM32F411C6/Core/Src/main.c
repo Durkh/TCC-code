@@ -24,6 +24,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#include <string.h>
+
 extern uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len);
 
 #include "ssd1306.h"
@@ -119,6 +121,29 @@ void SanityCheck(unsigned const int size, uint8_t const msg[]){
     PRINT("\r\n");
 }
 
+struct SensorData {float t; float h; unsigned v; unsigned a; unsigned c;};
+
+void PrintSensorOLED(struct SensorData const * const sd){
+
+	char data[5][20];
+
+	snprintf(data[0], 20, "temp: %.1fC", sd->t);
+	snprintf(data[1], 20, "hum: %.1f%", sd->h);
+	snprintf(data[2], 20, "AQI: %i", sd->a);
+	snprintf(data[3], 20, "tVOC: %ippb", sd->v);
+	snprintf(data[4], 20, "eCO2: %ippm", sd->c);
+
+	ssd1306_Fill(Black);
+	ssd1306_SetCursor(0, 0);
+
+	for (int i = 0; i < 5; ++i){
+		ssd1306_WriteString(data[i], Font_6x8, White);
+		ssd1306_SetCursor(0, 9 << i);
+	}
+
+	ssd1306_UpdateScreen();
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -155,6 +180,11 @@ int main(void)
   /* USER CODE BEGIN 2 */
     ssd1306_Init();
 
+    ssd1306_WriteString("starting", Font_6x8, White);
+    ssd1306_UpdateScreen();
+    ssd1306_SetCursor(0,0);
+
+    Print7SD(0x0);
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -396,13 +426,9 @@ void StartDefaultTask(void const * argument)
   /* USER CODE BEGIN 5 */
     (void) argument;
 
-    ssd1306_WriteString("starting", Font_6x8, White);
-    ssd1306_UpdateScreen();
-    ssd1306_SetCursor(0,0);
-
-    Print7SD(0x0);
-
-    DCP_MODE mode = {.addr = 0x10, .flags.flags = FLAG_Instant, .isController = 0, .speed = SLOW};
+    struct SensorData sensorData = {0};
+    const DCP_MODE mode = {.addr = 0xFF, .flags.flags = FLAG_Instant, .isController = 0, .speed = SLOW};
+    struct DCP_Message_t* message = NULL;
 
     if (!DCPInit(0, mode)){
         PRINT("não foi possivel iniciar o barramento\r\n"); 
@@ -418,19 +444,18 @@ void StartDefaultTask(void const * argument)
     ssd1306_SetCursor(0, 0);
     ssd1306_WriteString("reading", Font_6x8, White);
     ssd1306_UpdateScreen();
-    ssd1306_SetCursor(0, 12);
 
-    struct DCP_Message_t* message = NULL;
     while(1){
-
         message = ReadMessage();
 
         if (message) {
-            Print7SD(message->type);
+	    //button messages
+	    if (message->type == 0) continue;
 
-            ssd1306_WriteString(message->generic.payload, Font_6x8, White);
-            ssd1306_UpdateScreen();
-            ssd1306_SetCursor(0, 12);
+	    memcpy(&sensorData, &message->generic.payload, sizeof sensorData);
+
+	    PrintSensorOLED(&sensorData);
+	    Print7SD((int)sensorData.t);
 
             //SanityCheck(message->type, debug.data);
 
@@ -441,7 +466,6 @@ void StartDefaultTask(void const * argument)
 
         vTaskDelay(pdMS_TO_TICKS(500));
         PRINT("reading\r\n");
-
     }
   /* USER CODE END 5 */
 }
