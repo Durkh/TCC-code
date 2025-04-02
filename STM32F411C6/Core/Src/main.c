@@ -126,19 +126,25 @@ struct SensorData {float t; float h; unsigned v; unsigned a; unsigned c;};
 void PrintSensorOLED(struct SensorData const * const sd){
 
 	char data[5][20];
+    unsigned f[2][2] = {
+        {(int)sd->t, (sd->t-(int)sd->t)*10},
+        {(int)sd->h, (sd->h-(int)sd->h)*10}};
 
-	snprintf(data[0], 20, "temp: %.1fC", sd->t);
-	snprintf(data[1], 20, "hum: %.1f%", sd->h);
+	snprintf(data[0], 20, "temp: %i,%iC", f[0][0], f[0][1]);
+	snprintf(data[1], 20, "hum: %i,%i%%", f[1][0], f[1][1]);
 	snprintf(data[2], 20, "AQI: %i", sd->a);
 	snprintf(data[3], 20, "tVOC: %ippb", sd->v);
 	snprintf(data[4], 20, "eCO2: %ippm", sd->c);
+
+    PRINT(data[0]);
+    PRINT(data[1]);
 
 	ssd1306_Fill(Black);
 	ssd1306_SetCursor(0, 0);
 
 	for (int i = 0; i < 5; ++i){
 		ssd1306_WriteString(data[i], Font_6x8, White);
-		ssd1306_SetCursor(0, 9 << i);
+		ssd1306_SetCursor(0, 9 * (i+1));
 	}
 
 	ssd1306_UpdateScreen();
@@ -449,13 +455,13 @@ void StartDefaultTask(void const * argument)
         message = ReadMessage();
 
         if (message) {
-	    //button messages
-	    if (message->type == 0) continue;
+            //button messages
+            if (message->type == 0) continue;
 
-	    memcpy(&sensorData, &message->generic.payload, sizeof sensorData);
+            memcpy(&sensorData, &message->generic.payload, sizeof sensorData);
 
-	    PrintSensorOLED(&sensorData);
-	    Print7SD((int)sensorData.t);
+            PrintSensorOLED(&sensorData);
+            Print7SD((int)sensorData.t);
 
             //SanityCheck(message->type, debug.data);
 
