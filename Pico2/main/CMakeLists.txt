@@ -1,4 +1,4 @@
-set(TARGET_NAME hello_freertos)
+set(TARGET_NAME DCP_test)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../DCP ${CMAKE_BINARY_DIR}/DCP)
 
@@ -7,7 +7,7 @@ target_include_directories(DCP PRIVATE
 )
 
 add_executable(${TARGET_NAME}
-    hello_freertos.c
+    main.c
     ${CMAKE_CURRENT_LIST_DIR}/../DCP/rp2350/port.c
 )
 

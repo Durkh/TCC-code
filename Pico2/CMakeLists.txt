@@ -14,4 +14,4 @@ project(teste C CXX ASM)
 
 pico_sdk_init()
 
-add_subdirectory(hello_freertos)
+add_subdirectory(main)
