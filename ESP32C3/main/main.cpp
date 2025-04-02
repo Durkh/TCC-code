@@ -13,7 +13,7 @@
 
 #include "Wire.h"
 
-#define READ 1
+#define DCP_ADDR 0xF0
 
 Adafruit_AHTX0 aht;
 ScioSense_ENS160 ens160(ENS160_I2CADDR_1);
@@ -32,7 +32,7 @@ extern "C" void app_main(void){
     Serial.begin(115200);
 
     DCP_MODE mode;
-    mode.addr = 2;
+    mode.addr = DCP_ADDR;
     mode.flags.flags = FLAG_Instant;
     mode.isController = true;
     //mode.speed = DCP_MODE::FAST2;
@@ -65,14 +65,16 @@ extern "C" void app_main(void){
     }
 
     sensors_event_t humidity1, temp;
-    struct {float t; float h; float v; float a; float c;} sensorData;
+    struct {float t; float h; unsigned v; unsigned a; unsigned c;} sensorData;
+    gpio_set_direction(GPIO_NUM_10, GPIO_MODE_OUTPUT);
+    gpio_set_level(GPIO_NUM_10, 0);
 
     while(1){
 
         if (aht.getStatus() != 0xFF) {
             aht.getEvent(&humidity1, &temp);// populate temp and humidity objects with fresh data
 
-            ESP_LOGD("AHT", "temp: %.2f\thumidity: %.2f", temp.temperature, humidity1.relative_humidity);
+            ESP_LOGI("AHT", "temp: %.2f\thumidity: %.2f", temp.temperature, humidity1.relative_humidity);
             sensorData.t = temp.temperature;
             sensorData.h = humidity1.relative_humidity;
 
@@ -85,7 +87,7 @@ extern "C" void app_main(void){
                 sensorData.v = ens160.getTVOC();
                 sensorData.c = ens160.geteCO2();
 
-                ESP_LOGD("ENS", "AQI: %i\tTVOC: %ippb\teCO2: %ippm\t", ens160.getAQI(), ens160.getTVOC(), ens160.geteCO2());
+                ESP_LOGI("ENS", "AQI: %i\tTVOC: %ippb\teCO2: %ippm\t", ens160.getAQI(), ens160.getTVOC(), ens160.geteCO2());
             }
         }
 
@@ -98,6 +100,15 @@ extern "C" void app_main(void){
         SanityCheck(message.message->type, message.data);
 
         SendMessage(message);
+
+	DCP_Message_t* received = ReadMessage();
+	if (received){
+	    assert(received->type == 0);
+	    assert(received->L3.IDD == DCP_ADDR);
+	    gpio_set_level(GPIO_NUM_10, received->L3.data[0]);
+
+	    free(received);
+	}
     }
 
     while(true);
