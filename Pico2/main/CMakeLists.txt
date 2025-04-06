@@ -2,6 +2,8 @@ set(TARGET_NAME DCP_test)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../DCP ${CMAKE_BINARY_DIR}/DCP)
 
+target_compile_definitions(DCP PRIVATE rp2350)
+
 target_include_directories(DCP PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/..
 )
