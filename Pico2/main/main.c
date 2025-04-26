@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "pico/stdlib.h"
-#include "hardware/gpio.h"
-#include "pico/multicore.h"
+#include <pico/stdlib.h>
+#include <hardware/gpio.h>
+#include <pico/multicore.h>
+
+#include <hardware/pwm.h>
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -25,6 +27,8 @@ static struct DCP_Message_t buttonData = {
     }
 };
 
+uint PWM_led;
+
 void main_task(void *params) {
 
     struct SensorData sensorData = {0};
@@ -34,17 +38,21 @@ void main_task(void *params) {
         message = ReadMessage();
 
         if (message) {
+            memcpy(&sensorData, &message->generic.payload, sizeof sensorData);
+            printf("t:%.2f\th:%.2f\tv:%i\ta:%i\tc:%i\n",
+                    sensorData.t,
+                    sensorData.h,
+                    sensorData.v,
+                    sensorData.a,
+                    sensorData.c);
 
-	    memcpy(&sensorData, &message->generic.payload, sizeof sensorData);
-	    printf("t:%.2f\th:%.2f\tv:%i\ta:%i\tc:%i\n",
-			    sensorData.t,
-			    sensorData.h,
-			    sensorData.v,
-			    sensorData.a,
-			    sensorData.c);
+            gpio_put(14, sensorData.t > 35);
+            gpio_put(15, sensorData.c > 650);
 
-	    gpio_put(14, sensorData.t > 35);
-	    gpio_put(15, sensorData.c > 650);
+            if (sensorData.a > 0 && sensorData.a <= 5){
+                pwm_set_chan_level(PWM_led, PWM_CHAN_A, 5-sensorData.a);
+                pwm_set_chan_level(PWM_led, PWM_CHAN_B, sensorData.a-1);
+            }
 
             free(message);
             message = NULL;
@@ -72,10 +80,10 @@ void ButtonCallback(void){
         if(buttonData.L3.data[0] != 0xFF) return;
 
         if(event == GPIO_IRQ_EDGE_RISE){
-            gpio_put(13,1);
+            gpio_put(11,1);
             buttonData.L3.data[0] = 0x1;
         }else if (event == GPIO_IRQ_EDGE_FALL){
-            gpio_put(13,0);
+            gpio_put(11,0);
             buttonData.L3.data[0] = 0x0;
         }
     }
@@ -86,8 +94,20 @@ int main( void )
     stdio_init_all();
 
     //LEDs 
-    gpio_init_mask(1U<<15 | 1U<<14 | 1U<<13 | 1U<<12 | 1U<<11 | 1U<<28);
-    gpio_set_dir_out_masked(1U<<15 | 1U<<14 | 1U<<13 | 1U<<12 | 1U<<11 | 1U<<28);
+    gpio_init_mask(1U<<15 | 1U<<14 | 1U<<11);
+    gpio_set_dir_out_masked(1U<<15 | 1U<<14 | 1U<<11);
+
+    //PWM
+    gpio_set_function(12, GPIO_FUNC_PWM);
+    gpio_set_function(13, GPIO_FUNC_PWM);
+    
+    PWM_led = pwm_gpio_to_slice_num(12);
+
+    pwm_set_wrap(PWM_led, 4);
+    pwm_set_chan_level(PWM_led, PWM_CHAN_A, 0);
+    pwm_set_chan_level(PWM_led, PWM_CHAN_B, 0);
+
+    pwm_set_enabled(PWM_led, true);
 
     //button
     gpio_init(10);

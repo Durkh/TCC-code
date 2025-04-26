@@ -21,6 +21,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     pico_async_context_freertos
     FreeRTOS-Kernel-Heap4
     pico_stdlib
+    hardware_pwm
     DCP
 )
 
