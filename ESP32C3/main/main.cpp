@@ -79,15 +79,15 @@ extern "C" void app_main(void){
             sensorData.h = humidity1.relative_humidity;
 
             if (ens160.available()) {
-                ens160.set_envdata(temp.temperature, humidity1.relative_humidity);
-                ens160.measure(true);
-                ens160.measureRaw(true);
-
                 sensorData.a = ens160.getAQI();
                 sensorData.v = ens160.getTVOC();
                 sensorData.c = ens160.geteCO2();
 
                 ESP_LOGI("ENS", "AQI: %i\tTVOC: %ippb\teCO2: %ippm\t", ens160.getAQI(), ens160.getTVOC(), ens160.geteCO2());
+
+                ens160.set_envdata(temp.temperature, humidity1.relative_humidity);
+                ens160.measure(true);
+                ens160.measureRaw(true);
             }
         }
 
@@ -101,14 +101,21 @@ extern "C" void app_main(void){
 
         SendMessage(message);
 
-	DCP_Message_t* received = ReadMessage();
-	if (received){
-	    assert(received->type == 0);
-	    assert(received->L3.IDD == DCP_ADDR);
-	    gpio_set_level(GPIO_NUM_10, received->L3.data[0]);
+        for(int i = 0; i < 100; ++i){
+            DCP_Message_t* received = ReadMessage();
 
-	    free(received);
-	}
+            if (received){
+            DCP_Data_t d = {.message = received};
+            SanityCheck(d.message->type, d.data);
+
+                assert(received->type == 0);
+                assert(received->L3.IDD == DCP_ADDR);
+                gpio_set_level(GPIO_NUM_10, received->L3.data[0]);
+
+                free(received);
+            }
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
     }
 
     while(true);
